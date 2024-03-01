@@ -8,9 +8,12 @@ from pyspark.sql import SparkSession
 from user_definition import *
 from google.oauth2 import service_account
 from google.cloud import aiplatform
+import certifi
 
 # os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.environ.get('GOOGLE_API_KEY')
 
+api_1_fields = ['id','companyName','title','salary','jobUrl','location','postedTime','description']
+api_2_fields = ['job_id','employer_name','job_title','salary','job_apply_link','location','job_posted_at_datetime_utc','job_description']
 
 json_creds = json.loads(GOOGLE_API_STRING.strip(),strict=False)
 #json_creds = json.loads(json_string,strict=False)
@@ -36,6 +39,9 @@ def clean_job_data_spark(df, searchTitle):
         # Combining salary fields into one
         salary_parts = [str(job['job_min_salary']), str(job['job_max_salary'])]
         job['salary'] = ' - '.join(filter(None, salary_parts))
+
+        api_1_fields = ['id','companyName','title','salary','jobUrl','location','postedTime','description']
+        api_2_fields = ['job_id','employer_name','job_title','salary','job_apply_link','location','job_posted_at_datetime_utc','job_description']
 
         # Standardizing field names across different APIs
         for key1, key2 in zip(api_1_fields, api_2_fields):
@@ -86,18 +92,18 @@ def push_to_mongo(mongo_collection, input_data):
     """
     try:
         mongo_collection.insert_many(input_data.collect(), ordered=False)
-        print("Documents inserted successfully!")
+        print("Documents inserted to Mongo successfully!")
     except Exception as e:
         print(e)
 
 
-def gcs_to_mongo():
+def gcs_to_mongodb_collection():
     # Initialize Spark session
     spark_session = SparkSession.builder.getOrCreate()
     conf = spark_session.sparkContext._jsc.hadoopConfiguration()
     conf.set(
-        "google.cloud.auth.service.account.json.keyfile",
-        GOOGLE_API_KEY,
+        "google.cloud.auth.service.account.json",
+        GOOGLE_API_STRING,
     )
     conf.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem")
     conf.set(
@@ -106,22 +112,25 @@ def gcs_to_mongo():
     )
 
     # Set up MongoDB connection
-    client = pymongo.MongoClient(ATLAS_CONNECTION_STRING)
+    ca = certifi.where()
+    client = pymongo.MongoClient(ATLAS_CONNECTION_STRING, tlsCAFile=ca)
     db = client[DB_NAME]
     collection = db[COLLECTION_NAME]
 
     # Clean data and create RDD
 
     folder_prefix = f"{datetime.now().strftime('%Y-%m-%d')}/"
+    folder_prefix = "2024-02-29/"
 
     for searchTitle in ['Data Scientist','Data Analyst','Machine Learning Engineer']:
         blob_name = folder_prefix + searchTitle.replace(" ", "") + '.json'
         input_rdd = clean_data(spark_session, GS_BUCKET_NAME, blob_name, searchTitle)
-        # preprocess text data function here
+        # function to preprocess text data here
+            #clean input_rdd and return another rdd and store it as input_rdd
         push_to_mongo(collection, input_rdd)
 
-        print("Data successfully moved from GCS to MongoDB.")
+        
 
 
 if __name__ == "__main__":
-    gcs_to_mongo()
+    gcs_to_mongodb_collection()
