@@ -129,8 +129,3 @@ def gcs_to_mongodb_collection():
             #clean input_rdd and return another rdd and store it as input_rdd
         push_to_mongo(collection, input_rdd)
 
-        
-
-
-if __name__ == "__main__":
-    gcs_to_mongodb_collection()

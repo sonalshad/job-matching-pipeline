@@ -1,15 +1,17 @@
 from langchain_community.vectorstores import MongoDBAtlasVectorSearch
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from io import BytesIO
-from pymongo.mongo_client import MongoClient
+import pymongo
 from user_definition import *
+import certifi
 
 def embed_descriptions():
     embeddings_function = HuggingFaceInstructEmbeddings(
         model_name="hkunlp/instructor-large", model_kwargs={"device": 'cpu'}
     )
 
-    client = MongoClient(ATLAS_CONNECTION_STRING)
+    ca = certifi.where()
+    client = pymongo.MongoClient(ATLAS_CONNECTION_STRING, tlsCAFile=ca)
                             
     try:
         client.admin.command('ping')
@@ -26,12 +28,18 @@ def embed_descriptions():
         descriptions.append(job['description'])
         metadatas.append(job)
 
+    # deleting all the jobs from the new_jobs collection
+    collection.deleteMany({})
+
+    embeddings_collection = client[DB_NAME][JOBS_COLLECTION_NAME]
+
+    # deleting all jobs from the jobs_data collection
+    embeddings_collection.deleteMany({})
+
     vector_search = MongoDBAtlasVectorSearch.from_texts(
     descriptions,
     embeddings_function,
     metadatas,
-    client[DB_NAME][JOBS_COLLECTION_NAME])
+    embeddings_collection)
 
-    collection.deleteMany({})
-
-embed_descriptions()
+    
