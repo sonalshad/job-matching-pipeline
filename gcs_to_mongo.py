@@ -1,14 +1,21 @@
 import os
+import json
+import pymongo
+import certifi
 from datetime import date
 from datetime import datetime
-import pymongo
-from google.cloud import storage
-import json
-from pyspark.sql import SparkSession
 from user_definition import *
-from google.oauth2 import service_account
+from google.cloud import storage
+from nltk.corpus import stopwords 
 from google.cloud import aiplatform
-import certifi
+from pyspark.sql import SparkSession
+from nltk.stem import WordNetLemmatizer
+from nltk.tokenize import word_tokenize
+from google.oauth2 import service_account
+
+
+
+
 
 # os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.environ.get('GOOGLE_API_KEY')
 
@@ -21,6 +28,13 @@ project_id = json_creds['project_id']
 credentials = service_account.Credentials.from_service_account_info(json_creds)
 aiplatform.init(project=project_id, credentials=credentials)
 
+def text_preprocessing(text: str):
+    tokens = word_tokenize(text.lower())
+    lemmatizer = WordNetLemmatizer()
+    lemmatized = [lemmatizer.lemmatize(token) for token in tokens]
+    stop_words = set(stopwords.words('english'))
+    go_words = [word for word in tokens if word not in stop_words]
+    return go_words
 
 def clean_job_data_spark(df, searchTitle):
     def clean_job(row):
@@ -43,6 +57,7 @@ def clean_job_data_spark(df, searchTitle):
         api_1_fields = ['id','companyName','title','salary','jobUrl','location','postedTime','description']
         api_2_fields = ['job_id','employer_name','job_title','salary','job_apply_link','location','job_posted_at_datetime_utc','job_description']
 
+    
         # Standardizing field names across different APIs
         for key1, key2 in zip(api_1_fields, api_2_fields):
             job[key1] = job[key2]
