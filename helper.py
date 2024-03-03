@@ -13,7 +13,7 @@ from user_definition import *
 from io import BytesIO
 
 
-def generate_prompt(resume_text,job_description):
+def generate_prompt(resume_text, job_description):
     prompt = f"""
                 You are tasked with developing a tool to assist job seekers in matching their resumes to job descriptions effectively. 
                 Your tool will compare the content of a resume to the job description of a specific job and provide concise insights into 
@@ -30,7 +30,6 @@ def generate_prompt(resume_text,job_description):
     return prompt
 
 
-
 # Function to upload file to Google Cloud Storage
 def upload_to_gcs(file_contents, bucket_name, destination_blob_name):
     storage_client = storage.Client()
@@ -39,26 +38,29 @@ def upload_to_gcs(file_contents, bucket_name, destination_blob_name):
     blob.upload_from_string(file_contents, content_type='application/pdf')
     return f'gs://{bucket_name}/{destination_blob_name}'
 
-def get_matching_points(resume_text,job_descriptions):
+
+def get_matching_points(resume_text, job_descriptions):
     matching_points = []
-    model = VertexAI(model_name="gemini-pro",project=GCP_PROJECT_NAME)
+    model = VertexAI(model_name="gemini-pro", project=GCP_PROJECT_NAME)
     for job_description in job_descriptions:
-        prompt = generate_prompt(resume_text,job_description)
+        prompt = generate_prompt(resume_text, job_description)
         points = model.invoke(prompt)
         matching_points.append(points)
         time.sleep(2)
     return matching_points
 
+
 def parse_resume(resume):
-    
+
     file_contents = resume.read()
     file_name = resume.name
-        
+
     # Specify your Google Cloud Storage bucket name and destination blob name
     gs_output_path = f'gs://{GS_BUCKET_NAME}/parsed_resume_txt/'
     destination_blob_name = f'uploaded_resume_pdf/{file_name}'
-    
-    gcs_url = upload_to_gcs(file_contents, GS_BUCKET_NAME, destination_blob_name)
+
+    gcs_url = upload_to_gcs(
+        file_contents, GS_BUCKET_NAME, destination_blob_name)
     docs = async_detect_document(gcs_url, gs_output_path)
 
     return docs[0]
@@ -71,24 +73,24 @@ def parse_resume(resume):
 
 
 def find_jobs(title, resume_text):
-    
-    embeddings_function = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-large", model_kwargs={"device": 'cpu'})
-    
-    vector_search = MongoDBAtlasVectorSearch.from_connection_string(
-    ATLAS_CONNECTION_STRING,
-    f"{DB_NAME}.{JOBS_COLLECTION_NAME}",
-    embeddings_function,
-    index_name=VECTOR_INDEX_NAME)
 
-        
+    embeddings_function = HuggingFaceInstructEmbeddings(
+        model_name="hkunlp/instructor-large", model_kwargs={"device": 'cpu'})
+
+    vector_search = MongoDBAtlasVectorSearch.from_connection_string(
+        ATLAS_CONNECTION_STRING,
+        f"{DB_NAME}.{JOBS_COLLECTION_NAME}",
+        embeddings_function,
+        index_name=VECTOR_INDEX_NAME)
+
     # Execute the similarity search with the given query
     results = vector_search.similarity_search_with_score(
         query=resume_text,
         k=3,
         pre_filter={"searchTitle": {"$eq": title}},
     )
-    
-    results_df = get_results_df(results,resume_text)
+
+    results_df = get_results_df(results, resume_text)
 
     return results_df
 
@@ -96,17 +98,17 @@ def find_jobs(title, resume_text):
 def get_results_df(results, resume_text):
     job_descriptions = []
     job_details = []
-    for doc,score in results:
+    for doc, score in results:
         job_descriptions.append(doc.page_content)
         job_detail = doc.metadata
         job_detail['similarity_score'] = score
         job_details.append(job_detail)
-    matching_points = get_matching_points(resume_text,job_descriptions)
+    matching_points = get_matching_points(resume_text, job_descriptions)
     results_df = pd.DataFrame(job_details)
     results_df['matching_points'] = matching_points
     return results_df
 
-    
+
 def async_detect_document(gcs_source_uri, gcs_destination_uri):
     """
     Perform OCR on PDF/TIFF files stored on Google Cloud Storage asynchronously.
@@ -130,7 +132,8 @@ def async_detect_document(gcs_source_uri, gcs_destination_uri):
 
     # Set up input and output configurations
     gcs_source = vision.GcsSource(uri=gcs_source_uri)
-    input_config = vision.InputConfig(gcs_source=gcs_source, mime_type=mime_type)
+    input_config = vision.InputConfig(
+        gcs_source=gcs_source, mime_type=mime_type)
     gcs_destination = vision.GcsDestination(uri=gcs_destination_uri)
     output_config = vision.OutputConfig(
         gcs_destination=gcs_destination, batch_size=batch_size
@@ -146,14 +149,14 @@ def async_detect_document(gcs_source_uri, gcs_destination_uri):
 
     print("Waiting for the operation to finish.")
     operation.result(timeout=420)
-    
+
     # Access the result files stored on GCS
     storage_client = storage.Client()
     match = re.match(r"gs://([^/]+)/(.+)", gcs_destination_uri)
     bucket_name = match.group(1)
     prefix = match.group(2)
     bucket = storage_client.get_bucket(bucket_name)
-    
+
     # Extract text from each result file
     docs = []
     for filename in [blob for blob in list(bucket.list_blobs(prefix=prefix)) if not blob.name.endswith("/")]:
@@ -166,8 +169,7 @@ def async_detect_document(gcs_source_uri, gcs_destination_uri):
     return docs
 
 
-
-#results is a list of tuple. (doc,score)
+# results is a list of tuple. (doc,score)
 
 #  def find_jobs(job_title, location, resume_text):
 
@@ -177,7 +179,7 @@ def async_detect_document(gcs_source_uri, gcs_destination_uri):
 
 #     vector_search = Chroma(persist_directory='db', embedding_function=embeddings_function)
 
-        
+
 #     # Execute the similarity search with the given query
 #     results = vector_search.similarity_search_with_score(
 #         query=resume_text,
