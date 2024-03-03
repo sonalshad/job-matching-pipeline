@@ -6,15 +6,13 @@ from datetime import date
 from datetime import datetime
 from user_definition import *
 from google.cloud import storage
-from nltk.corpus import stopwords 
+# from nltk.corpus import stopwords 
 from google.cloud import aiplatform
 from pyspark.sql import SparkSession
-from nltk.stem import WordNetLemmatizer
-from nltk.tokenize import word_tokenize
+# from nltk.stem import WordNetLemmatizer
+# from nltk.tokenize import word_tokenize
 from google.oauth2 import service_account
-
-
-
+from pyspark.ml.feature import Tokenizer, StopWordsRemover, CountVectorizer
 
 
 # os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.environ.get('GOOGLE_API_KEY')
@@ -29,12 +27,19 @@ credentials = service_account.Credentials.from_service_account_info(json_creds)
 aiplatform.init(project=project_id, credentials=credentials)
 
 def text_preprocessing(text: str):
-    tokens = word_tokenize(text.lower())
-    lemmatizer = WordNetLemmatizer()
-    lemmatized = [lemmatizer.lemmatize(token) for token in tokens]
-    stop_words = set(stopwords.words('english'))
-    go_words = [word for word in tokens if word not in stop_words]
-    return go_words
+    # tokens = word_tokenize(text.lower())
+    # lemmatizer = WordNetLemmatizer()
+    # lemmatized = [lemmatizer.lemmatize(token) for token in tokens]
+    # stop_words = set(stopwords.words('english'))
+    # go_words = [word for word in tokens if word not in stop_words]
+    # return go_words
+
+    tokenizer = Tokenizer(inputCol="raw_text", outputCol="tokens")
+    wordsData = spark.createDataFrame([(text,)], ["raw_text"])
+    wordsData = tokenizer.transform(wordsData)
+    remover = StopWordsRemover(inputCol="tokens", outputCol="filtered_tokens")
+    wordsData = remover.transform(wordsData)
+    return wordsData.select("filtered_tokens").rdd.flatMap(lambda x: x)
 
 def clean_job_data_spark(df, searchTitle):
     def clean_job(row):
