@@ -11,3 +11,4 @@ export ATLAS_CONNECTION_STRING="mongodb+srv://param:ZZ6Fz0hcJjODI3aH@msds697-gro
 export VECTOR_INDEX_NAME="vector_index"
 export COLLECTION_NAME="new_jobs"
 export JOBS_COLLECTION_NAME="jobs_data"
+export COLLECTION_NAME_STATS="job_stats"
