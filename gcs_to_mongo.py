@@ -73,6 +73,9 @@ def clean_job_data_spark(df, searchTitle):
         for key1, key2 in zip(api_1_fields, api_2_fields):
             job[key1] = job[key2]
 
+        #Preparing description for embedding task
+        job['description'] = text_preprocessing(job['description'])
+        
         # Removing unwanted fields and adding searchTitle
         cleaned_job = {key: job[key] for key in api_1_fields if key in job}
         cleaned_job['searchTitle'] = searchTitle
