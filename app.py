@@ -81,8 +81,7 @@ if resume is not None:
         resume_text = parse_resume(resume)
         #st.write(resume_text)
         with st.spinner('Searching best jobs for you ...'):
-            jobs_result = find_jobs(selected_job_title, selected_location)
-            jobs_df = get_results_df(jobs_result, resume_text)       
+            jobs_result = find_jobs(selected_job_title, resume_text)
         st.write(jobs_result)
         st.write(f'Showing top 5 of {n} relevant jobs')
 footer_text = """
