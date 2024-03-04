@@ -94,6 +94,23 @@ def find_jobs(title, resume_text):
 
     return results_df
 
+def get_stats_data():
+    ca = certifi.where()
+    client = pymongo.MongoClient(ATLAS_CONNECTION_STRING, tlsCAFile=ca)
+
+    try:
+        client.admin.command('ping')
+        print("Pinged your deployment. You successfully connected to MongoDB!")
+    except Exception as e:
+        print(e)
+
+    collection = client[DB_NAME][COLLECTION_NAME_STATS]
+    stats = collection.find()
+
+    data = list(stats)
+    df = pd.DataFrame(data)
+    
+    return df.drop('_id', axis = 1)
 
 def get_results_df(results, resume_text):
     job_descriptions = []
