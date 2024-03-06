@@ -5,13 +5,20 @@ import time
 import pandas as pd
 from google.cloud import storage
 from google.cloud import vision
+import warnings
+import pymongo
+import certifi
 from langchain_google_vertexai import VertexAI
 from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain_community.vectorstores import MongoDBAtlasVectorSearch
 from user_definition import *
+from google.oauth2 import service_account
+from google.cloud import aiplatform
 
 from io import BytesIO
 
+
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.environ['GOOGLE_API_KEY']
 
 def generate_prompt(resume_text, job_description):
     prompt = f"""
@@ -50,7 +57,12 @@ def get_matching_points(resume_text, job_descriptions):
     return matching_points
 
 
-def parse_resume(resume):
+def parse_resume(resume, user_sample=True):
+
+    if user_sample:
+        with open('resume/Param_Mehta_Resume.txt', 'r') as file:
+            file_contents = file.read()
+        return file_contents
 
     file_contents = resume.read()
     file_name = resume.name
@@ -65,18 +77,14 @@ def parse_resume(resume):
 
     return docs[0]
 
-    # for i, text in enumerate(docs):
-    #     txt_filename = f'parsed_resume_docs/{file_name.replace(".pdf", ".txt")}'
-    #     with open(txt_filename, "w") as file:
-    #         file.write(text)
-    # return 'Resume parsed successfully'
-
 
 def find_jobs(title, resume_text):
 
+    warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
     embeddings_function = HuggingFaceInstructEmbeddings(
-        model_name="hkunlp/instructor-large", model_kwargs={"device": 'cpu'})
+        model_name="hkunlp/instructor-base", model_kwargs={"device": 'cpu'})
 
+    print(title)
     vector_search = MongoDBAtlasVectorSearch.from_connection_string(
         ATLAS_CONNECTION_STRING,
         f"{DB_NAME}.{JOBS_COLLECTION_NAME}",
@@ -184,31 +192,3 @@ def async_detect_document(gcs_source_uri, gcs_destination_uri):
         docs.append(annotation['text'])
 
     return docs
-
-
-# results is a list of tuple. (doc,score)
-
-#  def find_jobs(job_title, location, resume_text):
-
-#     embeddings_function = HuggingFaceInstructEmbeddings(
-#         model_name="hkunlp/instructor-large", model_kwargs={"device": 'cpu'}
-#     )
-
-#     vector_search = Chroma(persist_directory='db', embedding_function=embeddings_function)
-
-
-#     # Execute the similarity search with the given query
-#     results = vector_search.similarity_search_with_score(
-#         query=resume_text,
-#         k=5
-#     )
-
-#     rows = [(list(doc.metadata.values())[0],score) for doc, score in results]
-#     results_df = pd.DataFrame(rows,columns=['Job Url','Similarity Score']).round(4)
-#     job_descriptions = results_df['description'].values
-#     matching_points = get_matching_points(resume_text,job_descriptions)
-
-#     for doc,score in results:
-#         print(doc.page_content)
-
-#     return results_df

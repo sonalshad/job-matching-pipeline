@@ -1,0 +1,51 @@
+Param Mehta
+San Francisco, CA | LinkedIn | Email | GitHub | +1 (415)-792-7813
+Data Scientist with two years of experience in machine learning, demand forecasting and LLM applications
+EDUCATION
+Master of Science in Data Science | Jul 2023 - Jun 2024
+University of San Francisco, San Francisco, United States of America
+Bachelor of Technology in Data Science | Jul 2019 - Jul 2023
+Mukesh Patel School of Technology Management & Engineering (NMIMS), Mumbai, India
+EXPERIENCE
+Machine Learning Engineer, TruckX Inc | Oct 2023 - Present
+Building a customer support chatbot that is expected to automate the query resolution of more than 5000 app users,
+bringing down average response time by 66%. See Blog post
+Performed OCR over 100 pages of unstructured pdfs using Google's Cloud Vision API. Implemented a Retrieval
+Augmented Generation (RAG) pipeline through Langchain using the parsed documents and a quantized Llama 2 model.
+Developed a UAT application for the support team using Django, deployed through Docker and Kubernetes. The app
+records conversations and quantitative feedback that will be used for evaluation while finetuning the system.
+Data Scientist Intern, Mondelez International | Dec 2022 - May 2023
+Trained forecasting models for 156 SKUs to explore the impact of different pricing variables on demand in India.
+Achieved an increase of 2% in the monthly inventory turnover rate for Silk portfolio (premium chocolates) for Q1 2023.
+Performed similar experiments to model grammage sensitivity, revising volume estimates of Q1 2023 by 6000 tones.
+Utilized PySpark's SparkML to implement the forecasting pipeline which involved predicting the decomposed
+components using an ensemble of XGBoost and ARIMA models.
+Data Scientist Intern, AkzoNobel Coatings International | Jan 2022 - Nov 2022
+Developed a classification pipeline to improve and automate the color-matching process for solid coating products.
+Reduced the false positive rate by 54%, resulting in fewer product returns and saving potential reiteration costs.
+Inference time was 3x faster than existing human-evaluated quality tests, leading to faster production cycles.
+Collaborated with a team of 3 domain experts to process data, engineer relevant features, and perform EDA.
+Trained various boosting models and Neural Networks on spectroscopy data of 5 different coating products.
+PROJECTS
+■
+Product Category Classification | Mar 2022
+Developed a multi-modal neural network to classify product categories for an e-commerce website. Trained on 20000
+instances across 10 classes, the system can be scaled to further categories, elevating product discoverability and sales.
+Trained a text pipeline for product descriptions using Glove Embeddings and Bidirectional LSTM and a vision pipeline
+for product images using MobileNet. Integrated the concatenated embeddings of both with dense layers.
+Achieved a superior F1 score of 0.92 on the test dataset compared to individual text(0.89) and vision models(0.86).
+Predicting YouTube Video Likes | Feb 2022
+Winner of Kaggle Pogchamp competition with the objective of predicting video likes using descriptions and metadata
+Our solution, that outperformed 88 competing teams, involved an ensemble of CatBoost models, extensive feature
+engineering with date and language features, and training on a joint feature space of tf-idf vectors and tabular data.
+Linkedin Job Recommender | Feb 2024
+Utilized Airflow to periodically scrap Linkedin jobs and recommend top 10 listings most similar to uploaded resume.
+Used Pyspark to clean job descriptions, MongoDB to store embeddings and Gemini to summarize top jobs' similarities.
+Online Investing Platform | Jan 2021
+Developed an investing web app that enables users to track live prices, analyze price charts, and maintain a portfolio.
+Used MySQL for querying the back-end database, Flask to build the web app, and Bootstrap to design the interface.
+SKILLS
+■
+I
+Python, SQL, Time Series Analysis, Relational Databases, Natural Language Processing, GCP, Tableau, Pyspark,
+Langchain, Scikit-Learn, Pandas, Seaborn, TensorFlow, PyTorch, Flask, Django, Psycopg, NLTK, OpenCV, Selenium

@@ -1,51 +1,59 @@
 import os
 import json
-from datetime import date
 from datetime import datetime
 import pymongo
 from google.cloud import storage
-# from nltk.corpus import stopwords 
 from google.cloud import aiplatform
 from pyspark.sql import SparkSession
-# from nltk.stem import WordNetLemmatizer
-# from nltk.tokenize import word_tokenize
+
+
 from google.oauth2 import service_account
-from pyspark.ml.feature import Tokenizer, StopWordsRemover, CountVectorizer
-from pyspark.sql import SparkSession
 from user_definition import *
-from google.oauth2 import service_account
-from google.cloud import aiplatform
 import certifi
 
-# os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.environ.get('GOOGLE_API_KEY')
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+from nltk.tokenize import word_tokenize
+import re
 
-api_1_fields = ['id', 'companyName', 'title', 'salary',
-                'jobUrl', 'location', 'postedTime', 'description']
-api_2_fields = ['job_id', 'employer_name', 'job_title', 'salary',
-                'job_apply_link', 'location', 'job_posted_at_datetime_utc', 'job_description']
 
 json_creds = json.loads(GOOGLE_API_STRING.strip(), strict=False)
-# json_creds = json.loads(json_string,strict=False)
 project_id = json_creds['project_id']
 credentials = service_account.Credentials.from_service_account_info(json_creds)
 aiplatform.init(project=project_id, credentials=credentials)
 
-def text_preprocessing(text: str):
-    # tokens = word_tokenize(text.lower())
-    # lemmatizer = WordNetLemmatizer()
-    # lemmatized = [lemmatizer.lemmatize(token) for token in tokens]
-    # stop_words = set(stopwords.words('english'))
-    # go_words = [word for word in tokens if word not in stop_words]
-    # return go_words
 
-    tokenizer = Tokenizer(inputCol="raw_text", outputCol="tokens")
-    wordsData = spark.createDataFrame([(text,)], ["raw_text"])
-    wordsData = tokenizer.transform(wordsData)
-    remover = StopWordsRemover(inputCol="tokens", outputCol="filtered_tokens")
-    wordsData = remover.transform(wordsData)
-    return wordsData.select("filtered_tokens").rdd.flatMap(lambda x: x)
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('wordnet')
+stop_words = set(stopwords.words('english'))
+
 
 def clean_job_data_spark(df, searchTitle):
+    
+    def clean_text(text):
+        # Lowercasing
+        text = text.lower()
+        
+        # Remove special characters, numbers, and punctuations
+        text = re.sub(r'[^a-zA-Z\s]', '', text)
+        
+        # Tokenization
+        words = word_tokenize(text)
+        
+        # Remove stopwords
+        words = [word for word in words if word not in stop_words]
+
+        # Lemmatization
+        lemmatizer = WordNetLemmatizer()
+        words = [lemmatizer.lemmatize(word) for word in words]
+        
+        # Join the words back into a string
+        clean_text = ' '.join(words)
+        
+        return clean_text
+    
     def clean_job(row):
         job = row.asDict()
         # Skipping jobs with missing fields
@@ -73,12 +81,12 @@ def clean_job_data_spark(df, searchTitle):
         for key1, key2 in zip(api_1_fields, api_2_fields):
             job[key1] = job[key2]
 
-        #Preparing description for embedding task
-        job['description'] = text_preprocessing(job['description'])
-        
         # Removing unwanted fields and adding searchTitle
         cleaned_job = {key: job[key] for key in api_1_fields if key in job}
         cleaned_job['searchTitle'] = searchTitle
+
+        # cleaning description column
+        cleaned_job['clean_description'] = clean_text(cleaned_job['description'])
         return cleaned_job
 
     cleaned_jobs_rdd = df.rdd.map(clean_job).filter(lambda x: x is not None)
@@ -94,7 +102,7 @@ def clean_data(spark, bucket_name, blob_name, searchTitle):
     # df = spark.read.option("multiline", "true").json(f"gs://{bucket_name}/{blob_name}")
 
     gcs_path = f"gs://{bucket_name}/{blob_name}"
-    storage_client = storage.Client()
+    storage_client = storage.Client(project=project_id, credentials=credentials)
     bucket = storage_client.bucket(bucket_name)
 
     # Read the JSON file from Google Cloud Storage
@@ -107,7 +115,8 @@ def clean_data(spark, bucket_name, blob_name, searchTitle):
 
     try:
         cleaned_jobs_rdd = clean_job_data_spark(df, searchTitle)
-        print("RDD created successfully!")
+        print("Cleaned json data. RDD created successfully!")
+        print(f"No of jobs to insert = {cleaned_jobs_rdd.count()}")
         return cleaned_jobs_rdd
     except Exception as e:
         print(e)
@@ -118,11 +127,11 @@ def push_to_mongo(mongo_collection, input_data):
     This function pushes rdd data into MongoDB.
     """
     try:
-        mongo_collection.delete_many({})
         mongo_collection.insert_many(input_data.collect(), ordered=False)
         print("Documents inserted to Mongo successfully!")
     except Exception as e:
         print(e)
+        print("Failed to insert documents to MongoDB!")
 
 
 def gcs_to_mongodb_collection():
@@ -148,11 +157,15 @@ def gcs_to_mongodb_collection():
     # Clean data and create RDD
 
     folder_prefix = f"{datetime.now().strftime('%Y-%m-%d')}/"
+    
+    collection.delete_many({})
 
     for searchTitle in ['Data Scientist', 'Data Analyst', 'Machine Learning Engineer']:
         blob_name = folder_prefix + searchTitle.replace(" ", "") + '.json'
-        input_rdd = clean_data(
-            spark_session, GS_BUCKET_NAME, blob_name, searchTitle)
-        # function to preprocess text data here
-        # clean input_rdd and return another rdd and store it as input_rdd
+        input_rdd = clean_data(spark_session, GS_BUCKET_NAME, blob_name, searchTitle)
         push_to_mongo(collection, input_rdd)
+
+    spark_session.stop()
+
+if __name__ == "__main__":
+    gcs_to_mongodb_collection()

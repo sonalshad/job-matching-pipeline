@@ -5,12 +5,27 @@ import pymongo
 from user_definition import *
 import certifi
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import avg, countDistinct, split
+from pyspark.sql.functions import avg, countDistinct, split, count, col, lit, round
+import warnings
 
+
+def push_to_mongo(mongo_collection, input_data):
+    """
+    This function pushes rdd data into MongoDB.
+    """
+    try:
+        mongo_collection.insert_many(input_data.collect(), ordered=False)
+        print("Documents inserted to Mongo successfully!")
+    except Exception as e:
+        print(e)
+        print("Failed to insert documents to MongoDB!")
+        
 
 def embed_descriptions():
+    warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
+
     embeddings_function = HuggingFaceInstructEmbeddings(
-        model_name="hkunlp/instructor-large", model_kwargs={"device": 'cpu'}
+        model_name="hkunlp/instructor-base", model_kwargs={"device": 'cpu'}
     )
 
     ca = certifi.where()
@@ -24,26 +39,28 @@ def embed_descriptions():
 
     collection = client[DB_NAME][COLLECTION_NAME]
     new_jobs = collection.find()
-
-    descriptions = []
-    metadatas = []
-    for job in new_jobs:
-        descriptions.append(job['description'])
-        metadatas.append(job)
-
-    # deleting all the jobs from the new_jobs collection
-    collection.deleteMany({})
+    
 
     embeddings_collection = client[DB_NAME][JOBS_COLLECTION_NAME]
+    embeddings_collection.delete_many({})
 
-    # deleting all jobs from the jobs_data collection
-    embeddings_collection.deleteMany({})
 
-    vector_search = MongoDBAtlasVectorSearch.from_texts(
-        descriptions,
-        embeddings_function,
-        metadatas,
-        embeddings_collection)
+    for job in new_jobs:
+        descriptions = [job['clean_description']]
+        metadatas = [job]
+        vector_search = MongoDBAtlasVectorSearch.from_texts(
+                                                    descriptions,
+                                                    embeddings_function,
+                                                    metadatas,
+                                                    embeddings_collection)
+        break
+        
+    for job in new_jobs:
+        descriptions = [job['clean_description']]
+        metadatas = [job]
+        ids = vector_search.add_texts(descriptions,metadatas)
+        
+    print('Documents embedded successfully!')
 
 
 def calculate_summary_statistics():
@@ -101,7 +118,17 @@ def calculate_summary_statistics():
     aggregated_df.show()
     aggregated_df = aggregated_df.rdd.map(lambda row: row.asDict())
 
+    collection_stats.delete_many({})
     push_to_mongo(collection_stats, aggregated_df)
+
+    collection.delete_many({})
 
     # Stop SparkSession
     spark.stop()
+
+    print('Created summary statistics successfully!')
+
+
+if __name__ == "__main__":
+    embed_descriptions()
+    calculate_summary_statistics()

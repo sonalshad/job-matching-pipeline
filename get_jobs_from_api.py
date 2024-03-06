@@ -1,40 +1,31 @@
 import requests
-import pandas as pd
-import numpy as np
 import json
 from google.cloud import storage
-from datetime import date, datetime
-import os
+from datetime import datetime
 import time
 from user_definition import *
 from google.oauth2 import service_account
 from google.cloud import aiplatform
 
 
-# os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = GOOGLE_API_KEY
-
 
 json_creds = json.loads(GOOGLE_API_STRING.strip(), strict=False)
-# json_creds = json.loads(json_string,strict=False)
 project_id = json_creds['project_id']
 credentials = service_account.Credentials.from_service_account_info(json_creds)
 aiplatform.init(project=project_id, credentials=credentials)
 
 
-api_1_fields = ['id', 'companyName', 'title', 'salary',
-                'jobUrl', 'location', 'postedTime', 'description']
-api_2_fields = ['job_id', 'employer_name', 'job_title', 'salary',
-                'job_apply_link', 'location', 'job_posted_at_datetime_utc', 'job_description']
-
-
 def write_data_to_gcs(bucket_name, folder_prefix, destination_file_name, json_data):
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(bucket_name)
+    try:
+        storage_client = storage.Client(project=project_id,credentials=credentials)
+        bucket = storage_client.bucket(bucket_name)
 
-    blob = bucket.blob(folder_prefix + destination_file_name)
-    blob.upload_from_string(json_data, content_type='application/json')
-    print('Data written to GCS succesfully')
-    print('Failed to write data to GCS')
+        blob = bucket.blob(folder_prefix + destination_file_name)
+        blob.upload_from_string(json_data, content_type='application/json')
+        print('Data written to GCS succesfully')
+    except Exception as e:
+        print(e)
+        print('Failed to write data to GCS')
 
 
 def fetch_jobs_data_2(searchTitle):
@@ -72,3 +63,7 @@ def get_data():
         time.sleep(5)
         fetch_jobs_data_2(searchTitle)
         print(f"Successfully searched jobs for {searchTitle}")
+
+
+if __name__ == "__main__":
+    get_data()

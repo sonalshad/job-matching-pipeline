@@ -2,13 +2,13 @@ import streamlit as st
 import pandas as pd
 from helper import *
 from PIL import Image
-
-#from langchain.vectorstores import MongoDBAtlasVectorSearch
+from user_definition import *
+from google.oauth2 import service_account
+from google.cloud import aiplatform
 
 st.set_page_config(layout="wide")
 
-
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = GOOGLE_API_KEY_FILE
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.environ['GOOGLE_API_KEY']
 
 
 # Streamlit App
@@ -56,6 +56,7 @@ with col2:
     button_clicked[job_title_options[1]] = st.button(job_title_options[1])                               
 with col3:
     button_clicked[job_title_options[2]] = st.button(job_title_options[2])          
+
 # Determine the selected job title
 selected_job_title = None
 for job_title, is_clicked in button_clicked.items():
@@ -64,8 +65,11 @@ for job_title, is_clicked in button_clicked.items():
         break
 if selected_job_title:
     st.write(f'Selected Job Title: {selected_job_title}')
+    st.session_state['selected_job_title'] = selected_job_title
 else:
     st.write('No job title selected')
+
+
 st.sidebar.image("usf_logo.png", use_column_width=True)
 st.sidebar.image("job.png", use_column_width=True)
 st.sidebar.write('[Github](https://github.com/sonalshad/job-matching-pipeline)')
@@ -81,9 +85,18 @@ if resume is not None:
         resume_text = parse_resume(resume)
         #st.write(resume_text)
         with st.spinner('Searching best jobs for you ...'):
-            jobs_result = find_jobs(selected_job_title, resume_text)
-        st.write(jobs_result)
-        st.write(f'Showing top 5 of {n} relevant jobs')
+            jobs_result = find_jobs(st.session_state['selected_job_title'], resume_text)
+
+        for i, row in jobs_result.iterrows():
+            st.markdown(f"## {row['companyName']}")
+            st.markdown(f"### {row['title']}")
+            st.write(f"Similarity Score: {round(row['similarity_score'],2)}")
+            st.write(f"Location: {row['location']}")
+            st.write(f"Salary: {row['salary']}")
+            st.write(f"Job URL: {row['jobUrl']}")
+            st.write(f"Matching Points:")
+            st.write(f"{row['matching_points']}")
+            st.markdown("---")
 footer_text = """
 ---
 [Github](https://github.com/sonalshad/job-matching-pipeline)
