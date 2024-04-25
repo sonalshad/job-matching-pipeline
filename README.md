@@ -1,5 +1,5 @@
 # job-matching-pipeline
-An ETL pipeline for an LLM-powered job recommendation engine. 
+An end-to-end data processing pipeline integrating LLM-powered semantic analysis for optimized job-to-candidate matching.
 
 By Sonal Shad, Param Mehta, Laila Zaidi, Shagun Kala, Belinda Ong
  
